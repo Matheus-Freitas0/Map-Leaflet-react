@@ -85,12 +85,14 @@ function MapController({
       if (property) {
         // Fecha todos os popups antes de fazer zoom
         map.closePopup();
+
+        // Faz o zoom para a propriedade
         map.setView([property.location.lat, property.location.lng], 16, {
           animate: true,
         });
 
-        // Aguarda a animação do zoom terminar e abre o popup
-        setTimeout(() => {
+        // Aguarda a animação do zoom terminar e abre o popup apenas uma vez
+        const timeoutId = setTimeout(() => {
           if (clusterGroupRef.current) {
             // Encontra o marcador específico no cluster group
             clusterGroupRef.current.eachLayer((layer) => {
@@ -103,15 +105,23 @@ function MapController({
                   Math.abs(markerLat - property.location.lat) < 0.0001 &&
                   Math.abs(markerLng - property.location.lng) < 0.0001
                 ) {
-                  layer.openPopup();
+                  // Abre o popup apenas se não estiver já aberto
+                  if (!layer.isPopupOpen()) {
+                    layer.openPopup();
+                  }
                 }
               }
             });
           }
         }, 1000); // Aguarda 1 segundo para a animação do zoom terminar
+
+        // Cleanup do timeout se o componente for desmontado ou o efeito for executado novamente
+        return () => {
+          clearTimeout(timeoutId);
+        };
       }
     }
-  }, [selectedProperty, properties, map, zoomOnSelect, clusterGroupRef]);
+  }, [selectedProperty?.id, zoomOnSelect]); // Removido properties, map e clusterGroupRef das dependências
 
   useEffect(() => {
     let timeoutId;
@@ -136,7 +146,7 @@ function MapController({
           zoom: zoom,
           center: center,
         });
-      }, 800); // Aumentado para 800ms para evitar atualizações muito frequentes
+      }, 300); // Reduzido para 300ms para melhor responsividade
     };
 
     map.on("moveend", handleMoveEnd);
@@ -311,9 +321,14 @@ function MarkerCluster({
         // Para propagação para evitar conflitos
         e.originalEvent.stopPropagation();
 
+        // Fecha outros popups antes de abrir este
+        map.closePopup();
+
         // Força abertura do popup com delay para garantir que abra
         setTimeout(() => {
-          marker.openPopup();
+          if (!marker.isPopupOpen()) {
+            marker.openPopup();
+          }
         }, 10);
 
         // Seleciona o imóvel na lista

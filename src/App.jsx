@@ -40,8 +40,24 @@ function App() {
     });
   }, [filters]);
 
-  // Propriedades para mostrar na lista (sempre todas as filtradas)
-  const listProperties = filteredByFilters;
+  // Propriedades para mostrar na lista (filtradas por filtros E visíveis no mapa)
+  const listProperties = useMemo(() => {
+    if (!mapBounds) {
+      return filteredByFilters;
+    }
+
+    return filteredByFilters.filter((property) => {
+      const lat = property.location.lat;
+      const lng = property.location.lng;
+
+      return (
+        lat >= mapBounds.south &&
+        lat <= mapBounds.north &&
+        lng >= mapBounds.west &&
+        lng <= mapBounds.east
+      );
+    });
+  }, [filteredByFilters, mapBounds]);
 
   const handlePropertySelectFromList = useCallback((property) => {
     setZoomOnSelect(true); // Permite zoom quando vem da lista
@@ -71,22 +87,11 @@ function App() {
     );
   }, []);
 
-  const handleMapMove = useCallback(
-    (mapData) => {
-      // Só atualiza se realmente houve mudança significativa no mapa
-      const newBounds = mapData.bounds;
-      if (
-        !mapBounds ||
-        Math.abs(mapBounds.north - newBounds.north) > 0.001 ||
-        Math.abs(mapBounds.south - newBounds.south) > 0.001 ||
-        Math.abs(mapBounds.east - newBounds.east) > 0.001 ||
-        Math.abs(mapBounds.west - newBounds.west) > 0.001
-      ) {
-        setMapBounds(newBounds);
-      }
-    },
-    [mapBounds]
-  );
+  const handleMapMove = useCallback((mapData) => {
+    // Atualiza sempre para que a lista acompanhe o movimento do mapa
+    const newBounds = mapData.bounds;
+    setMapBounds(newBounds);
+  }, []);
 
   return (
     <Box
